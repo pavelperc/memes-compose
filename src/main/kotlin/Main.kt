@@ -24,9 +24,11 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -71,7 +73,6 @@ class ViewModel {
 @Preview
 fun App() {
     val viewModel = ViewModel()
-    viewModel.searchQuery.value = "kitten"
     DesktopMaterialTheme {
         Column(Modifier.fillMaxSize().padding(10.dp)) {
             Row {
