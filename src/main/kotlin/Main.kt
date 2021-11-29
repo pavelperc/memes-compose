@@ -10,10 +10,7 @@ import androidx.compose.foundation.lazy.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -24,11 +21,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -38,6 +31,12 @@ class ViewModel {
     val searchQuery = MutableStateFlow("")
     val urlsResult = searchQuery.debounce(300).map { query ->
         searchImages(query)
+    }.flatMapConcat {
+        flow {
+            emit(emptyList())
+            kotlinx.coroutines.delay(10) // `produceState` does not want to replace one image with another...
+            emit(it)
+        }
     }
 
     private val client = OkHttpClient()
@@ -50,6 +49,7 @@ class ViewModel {
     }
 
     private suspend fun searchImages(query: String): List<String> {
+        println("query = $query")
         val url = "https://imsea.herokuapp.com/api/1"
             .toHttpUrl()
             .newBuilder()
