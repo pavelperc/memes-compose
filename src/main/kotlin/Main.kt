@@ -20,22 +20,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import com.google.gson.JsonParser
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
 class ViewModel {
     val searchQuery = MutableStateFlow("")
-    val urlsResult = searchQuery.debounce(300).map { query ->
-        searchImages(query)
-    }.flatMapConcat {
-        flow {
-            emit(emptyList())
-            kotlinx.coroutines.delay(10) // `produceState` does not want to replace one image with another...
-            emit(it)
+    val urlsResult = searchQuery
+//        .debounce(300)
+        .mapLatest { query -> // important - cancel previous request!!
+            searchImages(query)
+        }
+        .flatMapConcat {
+            flow {
+                emit(emptyList())
+                delay(10) // `produceState` does not want to replace one image with another...
+                emit(it)
         }
     }
 
@@ -48,6 +50,8 @@ class ViewModel {
         }
     }
 
+    val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private suspend fun searchImages(query: String): List<String> {
         println("query = $query")
         val url = "https://imsea.herokuapp.com/api/1"
@@ -55,13 +59,15 @@ class ViewModel {
             .newBuilder()
             .addQueryParameter("q", query)
             .build()
-
         val request = Request.Builder().url(url).build()
-
-        val resultStr = withContext(Dispatchers.IO) {
+        val resultStr = ioScope.async {
             val response = client.newCall(request).execute()
+//            Thread.sleep(2000)
             response.body!!.string()
-        }
+        }.await() // withContext works bad! It can not cancel the coroutine without blocking.
+        // THIS IS A COROUTINE BUG, SHOULD CREATE AN ISSUE ABOUT IT
+
+        println("end query = $query")
         val imageUrls = JsonParser.parseString(resultStr).asJsonObject.get("results")
             .asJsonArray.map { it.asString }
         return imageUrls
